@@ -1,0 +1,43 @@
+sequenceDiagram
+    actor User
+    participant SP as Service Provider
+    participant IdP as Identity Provider
+    participant CALEndpoint as CAL Metadata Endpoint
+
+    %% Background Caching Process
+    loop Periodic Cache Refresh
+        SP->>CALEndpoint: GET /saml/cal/metadata
+        activate CALEndpoint
+        CALEndpoint-->>SP: 200 OK (Certificate List)
+        deactivate CALEndpoint
+        Note over SP: Caches certificate<br/>metadata locally
+    end
+
+    %% SSO Login Flow
+    User->>SP: 1. Access protected resource
+    activate SP
+    SP->>User: 2. Redirect to IdP with SAML Request
+    deactivate SP
+
+    activate User
+    User->>IdP: 3. Forward SAML Request
+    deactivate User
+
+    activate IdP
+    Note over IdP: Authenticates user
+    Note over IdP: Generates SAML Response,<br/>signs with rotated certificate,<br/>includes certificateID
+    IdP->>User: 4. Return signed SAML Response
+    deactivate IdP
+
+    activate User
+    User->>SP: 5. POST SAML Response to SP
+    deactivate User
+
+    activate SP
+    Note over SP: 6. Receives SAML Response
+    Note over SP: 7. Extracts certificate
+    Note over SP: 8. Generate certificate thumbprint/ID
+    Note over SP: 9. Looks up certificateID in local cache
+    Note over SP: 10. Validates signature successfully
+    SP->>User: 11. Grant access & create session
+    deactivate SP
